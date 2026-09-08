@@ -11,6 +11,7 @@ use tokio::net::TcpListener;
 use application::proxy_service::ProxyService;
 use domain::config::ProxyConfig;
 use infrastructure::cli::CommandLineOptions;
+use infrastructure::dns::HostnameResolver;
 use infrastructure::metrics::{run_metrics_listener, Metrics};
 use infrastructure::server::run_listener;
 use infrastructure::tls::{build_proxy_client, load_incoming_tls_acceptor};
@@ -33,11 +34,13 @@ async fn main() {
     let logger = TrafficLogger::new(log_file, options.console);
     let client = build_proxy_client(options.insecure_target_tls);
     let metrics = Arc::new(Metrics::new());
+    let hostname_resolver = HostnameResolver::new(&options.dns_servers);
     let proxy_service = Arc::new(ProxyService::new(
         client,
         Arc::new(proxy_config),
         logger,
         metrics.clone(),
+        hostname_resolver,
     ));
 
     // Phase 4: configure the optional incoming HTTPS termination.

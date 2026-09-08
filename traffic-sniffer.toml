@@ -2,6 +2,7 @@
 listen = "0.0.0.0:8081"
 # metrics_listen = "0.0.0.0:9090"
 
+# dns_servers = ["10.114.0.254"]
 log = "traffic.log"
 console = true
 

@@ -29,10 +29,13 @@ pub async fn run_listener(
             }
         };
         let service = proxy_service.clone();
-        let transport = if tls_acceptor.is_some() { "https" } else { "http" };
+        let transport = if tls_acceptor.is_some() {
+            "https"
+        } else {
+            "http"
+        };
         metrics.record_tcp_connection(
             &remote_addr.ip().to_string(),
-            // remote_addr.port(),
             listen_port,
             transport,
         );

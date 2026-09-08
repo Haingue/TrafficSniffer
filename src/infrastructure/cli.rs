@@ -14,6 +14,7 @@ pub struct CommandLineOptions {
     pub insecure_target_tls: bool,
     pub tls_cert: Option<PathBuf>,
     pub tls_key: Option<PathBuf>,
+    pub dns_servers: Vec<String>,
 }
 
 #[derive(Default, Deserialize)]
@@ -26,6 +27,7 @@ struct FileConfiguration {
     insecure_target_tls: Option<bool>,
     tls_cert: Option<PathBuf>,
     tls_key: Option<PathBuf>,
+    dns_servers: Option<Vec<String>>,
 }
 
 #[derive(Default)]
@@ -38,6 +40,7 @@ struct CommandLineOverrides {
     insecure_target_tls: bool,
     tls_cert: Option<PathBuf>,
     tls_key: Option<PathBuf>,
+    dns_servers: Option<Vec<String>>,
 }
 
 impl CommandLineOptions {
@@ -70,6 +73,10 @@ impl CommandLineOptions {
                 || file_configuration.insecure_target_tls.unwrap_or(false),
             tls_cert: overrides.tls_cert.or(file_configuration.tls_cert),
             tls_key: overrides.tls_key.or(file_configuration.tls_key),
+            dns_servers: overrides
+                .dns_servers
+                .or(file_configuration.dns_servers)
+                .unwrap_or_default(),
         };
 
         validate_options(options)
@@ -106,6 +113,15 @@ fn parse_arguments() -> (Option<PathBuf>, CommandLineOverrides) {
             }
             "--tls-key" => {
                 overrides.tls_key = Some(PathBuf::from(next_value(&mut arguments, "--tls-key")))
+            }
+            "--dns-servers" => {
+                overrides.dns_servers = Some(
+                    next_value(&mut arguments, "--dns-servers")
+                        .split(',')
+                        .map(|value| value.trim().to_string())
+                        .filter(|value| !value.is_empty())
+                        .collect(),
+                )
             }
             other => eprintln!("ignoring unknown argument: {}", other),
         }

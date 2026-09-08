@@ -26,7 +26,7 @@ impl Metrics {
                 "trafficsniffer_requests_total",
                 "Total number of proxied HTTP requests by path and client IP",
             ),
-            &["path", "client_ip"],
+            &["path", "client_ip", "client_hostname"],
         )
         .expect("invalid Prometheus metric definition");
         registry
@@ -51,16 +51,15 @@ impl Metrics {
         }
     }
 
-    pub fn record_request(&self, path: &str, client_ip: &str) {
+    pub fn record_request(&self, path: &str, client_ip: &str, client_hostname: &str) {
         self.requests_by_path_and_ip
-            .with_label_values(&[path, client_ip])
+            .with_label_values(&[path, client_ip, client_hostname])
             .inc();
     }
 
     pub fn record_tcp_connection(
         &self,
         client_ip: &str,
-        // client_port: u16,
         listen_port: u16,
         transport: &str,
     ) {

@@ -11,6 +11,7 @@ use hyper::{Request, Response, StatusCode, Uri};
 
 use crate::domain::config::ProxyConfig;
 use crate::domain::traffic::TrafficRecord;
+use crate::infrastructure::dns::HostnameResolver;
 use crate::infrastructure::metrics::Metrics;
 use crate::infrastructure::tls::ProxyClient;
 use crate::infrastructure::traffic_log::TrafficLogger;
@@ -24,6 +25,7 @@ pub struct ProxyService {
     config: Arc<ProxyConfig>,
     logger: TrafficLogger,
     metrics: Arc<Metrics>,
+    hostname_resolver: HostnameResolver,
 }
 
 impl ProxyService {
@@ -32,12 +34,14 @@ impl ProxyService {
         config: Arc<ProxyConfig>,
         logger: TrafficLogger,
         metrics: Arc<Metrics>,
+        hostname_resolver: HostnameResolver,
     ) -> Self {
         Self {
             client,
             config,
             logger,
             metrics,
+            hostname_resolver,
         }
     }
 
@@ -48,8 +52,12 @@ impl ProxyService {
     ) -> Result<ProxyResponse, Infallible> {
         let start = Instant::now();
         let record_context = RequestContext::from_request(&request, remote_addr);
-        self.metrics
-            .record_request(&record_context.path, &record_context.client_ip);
+        let client_hostname: String = self.hostname_resolver.resolve(remote_addr.ip()).await;
+        self.metrics.record_request(
+            &record_context.path,
+            &record_context.client_ip,
+            &client_hostname,
+        );
         let target_uri = self.build_target_uri(&request);
         let (mut request_parts, body) = request.into_parts();
         request_parts.uri = target_uri;
@@ -66,6 +74,7 @@ impl ProxyService {
         self.logger.record(&TrafficRecord {
             timestamp: Utc::now().to_rfc3339(),
             client_ip: record_context.client_ip,
+            client_hostname: client_hostname,
             method: record_context.method,
             host: record_context.host,
             path: record_context.path,

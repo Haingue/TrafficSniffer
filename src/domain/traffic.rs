@@ -4,6 +4,7 @@ use serde::Serialize;
 pub struct TrafficRecord {
     pub timestamp: String,
     pub client_ip: String,
+    pub client_hostname: String,
     pub method: String,
     pub host: String,
     pub path: String,

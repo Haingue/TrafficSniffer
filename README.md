@@ -13,11 +13,11 @@ Benefits:
 
 TrafficSniffer is a lightweight reverse proxy written in Rust. Users keep
 hitting the old URLs in their browser; the proxy captures request metadata
-(client IP, method, host, path, query, ports, user-agent, referer, status
-code, duration) and forwards the call unchanged to the legacy application
-running on another server/port. Each request is logged as one JSON line
-(JSONL), optionally to a log file and to stdout. Prometheus metrics are
-exposed on a separate port by default.
+(client IP, client hostname, method, host, path, query, ports, user-agent,
+referer, status code, duration) and forwards the call unchanged to the legacy
+application running on another server/port. Each request is logged as one
+JSON line (JSONL), optionally to a log file and to stdout. Prometheus metrics
+are exposed on a separate port by default.
 
 ## Architecture
 
@@ -125,6 +125,21 @@ To write JSONL traffic logs to a file, provide the optional `--log` argument:
 ./trafficsniffer --target http://old-app:9090 --log traffic.log
 ```
 
+Each JSONL entry includes a `client_hostname` field, resolved from the
+client's IP address via reverse DNS (PTR record lookup), similar to running
+`nslookup`. The resolver uses the system's DNS configuration, caches results
+per IP for the lifetime of the process, and falls back to `"unknown"` when
+the lookup fails, times out (500 ms), or no PTR record exists.
+
+To use specific DNS servers instead of the system configuration, provide
+`--dns-servers` (comma-separated) or the `dns_servers` TOML array. Each
+configured server is tried in turn, one attempt per server, until one
+answers:
+
+```powershell
+./trafficsniffer --target http://old-app:9090 --log traffic.log --dns-servers 10.0.0.1,10.0.0.2
+```
+
 The legacy target can also use HTTPS. The proxy validates its certificate
 against the server's system certificate store:
 
@@ -176,6 +191,7 @@ Options:
 - `--insecure-target-tls` : do not validate the legacy target's HTTPS certificate
 - `--tls-cert` : PEM certificate presented for incoming HTTPS (requires `--tls-key`)
 - `--tls-key` : PEM private key for incoming HTTPS (requires `--tls-cert`)
+- `--dns-servers` : comma-separated list of DNS server IPs to use for reverse hostname lookups instead of the system configuration
 
 The metrics endpoint is plain HTTP and should normally be restricted to the
 monitoring network. The `client_ip` label is intentionally high-cardinality;
