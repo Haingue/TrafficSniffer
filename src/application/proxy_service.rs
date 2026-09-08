@@ -52,12 +52,6 @@ impl ProxyService {
     ) -> Result<ProxyResponse, Infallible> {
         let start = Instant::now();
         let record_context = RequestContext::from_request(&request, remote_addr);
-        let client_hostname: String = self.hostname_resolver.resolve(remote_addr.ip()).await;
-        self.metrics.record_request(
-            &record_context.path,
-            &record_context.client_ip,
-            &client_hostname,
-        );
         let target_uri = self.build_target_uri(&request);
         let (mut request_parts, body) = request.into_parts();
         request_parts.uri = target_uri;
@@ -70,22 +64,39 @@ impl ProxyService {
             .as_ref()
             .map(|value| value.status().as_u16())
             .unwrap_or(StatusCode::BAD_GATEWAY.as_u16());
+        let duration_ms = start.elapsed().as_millis();
 
-        self.logger.record(&TrafficRecord {
-            timestamp: Utc::now().to_rfc3339(),
-            client_ip: record_context.client_ip,
-            client_hostname: client_hostname,
-            method: record_context.method,
-            host: record_context.host,
-            path: record_context.path,
-            query: record_context.query,
-            listen_port: self.config.listen_port.clone(),
-            target_host: self.config.target_host.clone(),
-            target_port: self.config.target_port.clone(),
-            user_agent: record_context.user_agent,
-            referer: record_context.referer,
-            status_code,
-            duration_ms: start.elapsed().as_millis(),
+        // Hostname resolution, metrics and JSONL logging run in the background so they never delay the client response.
+        let hostname_resolver = self.hostname_resolver.clone();
+        let metrics = self.metrics.clone();
+        let logger = self.logger.clone();
+        let client_ip = remote_addr.ip();
+        let listen_port = self.config.listen_port.clone();
+        let target_host = self.config.target_host.clone();
+        let target_port = self.config.target_port.clone();
+        tokio::spawn(async move {
+            let client_hostname = hostname_resolver.resolve(client_ip).await;
+            metrics.record_request(
+                &record_context.path,
+                &record_context.client_ip,
+                &client_hostname,
+            );
+            logger.record(&TrafficRecord {
+                timestamp: Utc::now().to_rfc3339(),
+                client_ip: record_context.client_ip,
+                client_hostname,
+                method: record_context.method,
+                host: record_context.host,
+                path: record_context.path,
+                query: record_context.query,
+                listen_port,
+                target_host,
+                target_port,
+                user_agent: record_context.user_agent,
+                referer: record_context.referer,
+                status_code,
+                duration_ms,
+            });
         });
 
         match response {

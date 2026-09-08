@@ -60,6 +60,7 @@ async fn main() {
         options.log_path.as_deref(),
         tls_acceptor.is_some(),
         metrics_addr,
+        &options.dns_servers,
     );
     tokio::spawn(run_metrics_listener(metrics_listener, metrics.clone()));
     run_listener(listener, proxy_service, tls_acceptor, metrics).await;
@@ -124,15 +125,21 @@ fn print_startup_message(
     log_path: Option<&std::path::Path>,
     tls_enabled: bool,
     metrics_addr: std::net::SocketAddr,
+    dns_servers: &[String],
 ) {
     println!(
-        "TrafficSniffer listening on {} ({}), forwarding to {}, metrics on {}, log: {}",
+        "TrafficSniffer listening on {} ({}), forwarding to {}, metrics on {}, log: {}, dns: {}",
         listen_addr,
         if tls_enabled { "HTTPS" } else { "HTTP" },
         target_uri,
         metrics_addr,
         log_path
             .map(|path| path.display().to_string())
-            .unwrap_or_else(|| "disabled".to_string())
+            .unwrap_or_else(|| "disabled".to_string()),
+        if dns_servers.is_empty() {
+            "disabled".to_string()
+        } else {
+            dns_servers.join(", ")
+        }
     );
 }
