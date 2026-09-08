@@ -1,0 +1,15 @@
+## Server listen ##
+listen = "0.0.0.0:8081"
+# metrics_listen = "0.0.0.0:9090"
+
+log = "traffic.log"
+console = true
+
+## Target server configuration (HTTP) ##
+target = "http://localhost:8080/"
+
+## Target server configuration (HTTPS) ##
+# target = "https://localhost:4044/"
+# insecure_target_tls = true
+# tls_cert = "certs/traffic-sniffer.crt"
+# tls_key = "certs/traffic-sniffer.key"
